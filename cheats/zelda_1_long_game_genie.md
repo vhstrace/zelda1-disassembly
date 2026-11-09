@@ -1293,3 +1293,96 @@ out at a time.
 them.
 
 **Not tested by the user.**
+
+## Most walking monsters drop bombs
+
+**Codes:** `AEOATOGI` + `EUOEGPEY` + `SUKAGPSP` + `EXOUGPKZ` + `POOUIOPI` (use all five)
+**Raw form:** `$8196:00:5C` + `$819C:B0:F0` + `$81C4:B5:95` + `$B19C:A0:A4` + `$B19D:11:59` (address:new:compare, bank 4)
+**Optional, normal 48-frame fuse:** `POSAGPAP` (`$81D4:11:10`), and `POXLZPAP` (`$B1A2:11:10`) for Octoroks, Moblins, Lynels and Wizzrobes too
+**Recorded:** 2026-11-09 07:55:37
+
+**Mechanism:** This joins two existing cheats. It is the walking-monster hook
+from "Most walking monsters shoot arrows", with shot type `$00` as in
+"Monsters shoot Link's arrows without hurting themselves". It adds the
+`Shoot` slot change from "Monsters launch bombs instead of projectiles".
+
+- `AEOATOGI` + `EUOEGPEY` + `SUKAGPSP`: the hook. In
+  `L_Walker_SetInputDirAndTryShootingBoomerang` (`src/Z_04.asm`), which every
+  monster that uses `Wanderer_TargetPlayer` runs (and Goriyas and Armos
+  through `UpdateGoriya`), only Goriyas throw:
+
+  ```
+      ; Goriya will throw a boomerang (object type $5C).
+      LDA #$5C                    ; A9 5C -> A9 00
+      ; If the monster is a blue goriya, go check the timer.
+      LDY ObjType, X
+      CPY #$05
+      BEQ @CheckTimerToShoot      ; F0 -> B0 (BCS)
+      ...
+      LDA $00
+      JSR _ShootIfWanted
+      BCC @Exit
+      ; Set monster's state to $80 for delaying after shooting.
+      LDA #$80
+      STA ObjState, X             ; 95 AC -> B5 AC (LDA ObjState, X)
+  ```
+
+  `BCS` lets every type `$05` and up go on to throw. `_ShootIfWanted` only
+  throws when the "wants to shoot" flag is set, and `Wanderer_TargetPlayer`
+  sets it when the monster turns toward Link. `LDA` in place of `STA` keeps
+  the thrower's state, which many of these monsters use as a jump-table
+  index. Shot type `$00` is below `$53`, so `ShootLimited` does not count it
+  as a monster shot, and `SetTypeAndClearObject` leaves the free monster
+  slot empty. No leftover shot object is made.
+- `EXOUGPKZ` + `POOUIOPI`: in `Shoot`, `LDY EmptyMonsterSlot` becomes
+  `LDY #$11`. The thrower's direction and `ObjX`/`ObjY` go to slot `$11`,
+  Link's second bomb slot. The end of the hook then sets that slot's state
+  to `$10` (`LDA #$10` / `STA a:ObjState, Y` at `$81D3`).
+  `UpdateBombOrFire` treats state `$1x` as a bomb, and
+  `CheckMonsterCollisions` (`src/Z_01.asm`) checks every monster against
+  slot `$11`, so the blast hurts monsters.
+
+With state `$10`, `UpdateBomb` (`src/Z_07.asm`) reads its first fuse time
+from `BombTimes-1`, the `RTS` (`$60`) before the table. The bomb waits 96
+frames, then the normal 48, about 2.4 seconds in all. `POSAGPAP` makes the
+hook store `$11`, so the fuse starts at `BombTimes` (`$30`) like Link's bomb.
+`POXLZPAP` does the same for shots that go only through `Shoot`.
+
+The monsters this covers, from "Most walking monsters shoot arrows":
+Goriyas, Octoroks, Stalfos (both quests), Gibdos, Darknuts, Like Likes,
+Ghinis, Bubbles, Zols and Gels, Vires, blue Leevers, Dodongo and woken Armos.
+Moblins, Lynels and Wizzrobes are not on the hook, but their own shots go
+through `Shoot`, so they drop bombs too.
+
+**Evidence:** All seven addresses are used, with the same compare bytes,
+in earlier entries checked against `ext/original.nes`: `$8196`, `$819C`,
+`$81C4` and `$81D4` in the walking-monster entries, and `$B19C`, `$B19D`
+and `$B1A2` in "Monsters launch bombs instead of projectiles". There
+`nes_gg.py` found no other bank with the same bytes at these addresses.
+`bin/Z.nes` (placeholder build) has `A9 5C BC 4F 03 C0 05 F0 10` at bank 4
+CPU `$8195`, `A9 80 95 AC` at `$81C2`, `A9 10 99 AC 00` at `$81D3` and
+`A4 59 AE 40 03 A9 10 99` at `$B19C`. These are code, so they are real bytes.
+
+**Caveats:**
+
+- Not tested.
+- Only one monster bomb can be out at a time. Each new drop moves it to
+  the new monster and restarts its fuse. With many monsters on screen,
+  a bomb may move several times before it goes off.
+- While a monster's bomb is out, Link can't use a bomb.
+- After a drop, the thrower's `ObjTimer` is set to a random value up to
+  `$3F`. Leevers and Zols use it for other things, so they can pause or
+  change phase early.
+- Goriyas drop bombs instead of throwing boomerangs, and don't pause after
+  a throw. Octoroks drop bombs instead of shooting rocks.
+- Dodongo can drop a bomb and then swallow it.
+- `CreateChildGel` and Vire's split also use `Shoot`. The Gel or Keese goes
+  into a free monster slot, but its position and direction go to slot
+  `$11`, so it may appear where an old object was. `CreateChildGel` then
+  sets slot `$11`'s state to 0, which removes a bomb that is out. Not
+  checked in-game.
+- Pols Voice, Ropes, Wallmasters, Tektites, Peahats, Keese and red Leevers
+  don't use this hook and don't drop bombs.
+- Same bytes as the other walking-monster codes and the other `Shoot`
+  codes. Use only one of them. "First-quest Stalfos drop bombs" isn't
+  needed with this one.
