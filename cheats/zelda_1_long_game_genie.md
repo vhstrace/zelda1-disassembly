@@ -1384,5 +1384,4 @@ CPU `$8195`, `A9 80 95 AC` at `$81C2`, `A9 10 99 AC 00` at `$81D3` and
 - Pols Voice, Ropes, Wallmasters, Tektites, Peahats, Keese and red Leevers
   don't use this hook and don't drop bombs.
 - Same bytes as the other walking-monster codes and the other `Shoot`
-  codes. Use only one of them. "First-quest Stalfos drop bombs" isn't
-  needed with this one.
+  codes. Use only one of them.
