@@ -19526,3 +19526,52 @@ address, so the other-bank check is not real.
 - The Stalfos's sword-shot object still goes into a free monster slot in
   state 0, as described in "Monsters launch bombs instead of projectiles".
 - Do not use with the other cheats that change the same `Shoot` bytes.
+
+## Most walking monsters cast Wizzrobe magic
+
+**Codes:** `PSOATOGS` + `EUOEGPEY` + `SUKAGPSP` (use all three)
+**Raw form:** `$8196:59:5C` + `$819C:B0:F0` + `$81C4:B5:95` (address:new:compare, bank 4)
+**Optional, Octorok rocks instead of magic:** use `LSOATOGI` (`$8196:53:5C`) in place of `PSOATOGS`
+**Recorded:** 2026-11-09 07:56:28
+
+**Mechanism:** The same as "Most walking monsters shoot arrows", but
+`LDA #$5C` in `L_Walker_SetInputDirAndTryShootingBoomerang`
+(`src/Z_04.asm`) becomes `LDA #$59`, the magic shot that red Wizzrobes cast:
+
+```
+UpdateRedWizzrobe_2:
+    ; If state = $B0, then shoot a magic shot $59.
+    LDA ObjState, X
+    CMP #$B0
+    BNE Wizzrobe_DrawAndCheckCollisions
+    LDA #$59
+    JSR ShootMagicShot
+```
+
+`ShootMagicShot` only plays the magic sound and goes to `ShootLimited`, the
+same routine the hook reaches through `_ShootIfWanted`. So the shot is set
+up by `Shoot` as a Wizzrobe's is. `UpdateMonsterShot` draws types `$57` to
+`$59` with `DrawSwordShotOrMagicShot`. `EUOEGPEY` lets every monster type
+`$05` and up throw, and `SUKAGPSP` keeps the thrower's state (see the arrow
+entry).
+
+With `LSOATOGI` the type is `$53`, the Octorok rock.
+
+**Evidence:** The same bytes as "Most walking monsters shoot arrows"
+(checked there against `ext/original.nes`). `bin/Z.nes` has
+`A9 5C BC 4F 03 C0 05 F0 10` at bank 4 CPU `$8195`. `$8196` holds code
+in bank 4. Earlier entries ("Most walking monsters launch Lynel swords")
+found no other bank with `$5C` at `$8196`.
+
+**Caveats:**
+
+- Not tested.
+- The magic sound does not play. It is played by `ShootMagicShot`, which
+  the hook does not use.
+- The same monsters as the arrow entry: Goriyas, Octoroks, Stalfos, Gibdos,
+  Darknuts, Like Likes, Ghinis, Bubbles, Zols and Gels, Vires, blue Leevers,
+  Dodongo and woken Armos. Lynels and Moblins keep their own shots.
+- The other caveats of the arrow entry apply: throwers' timers are reset,
+  Goriyas don't pause, and Octorok rocks stop (with `PSOATOGS`).
+- Shots count toward the limit of 4 monster shots.
+- Same bytes as the other walking-monster codes. Use only one of them.
