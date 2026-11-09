@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"$CLAUDE_CODE_REMOTE\" = \"true\" ] && [ ! -f \"$CLAUDE_PROJECT_DIR/bin/Z.nes\" ]; then \"$CLAUDE_PROJECT_DIR/cheats/cloud_build.sh\"; fi",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  }
+}
